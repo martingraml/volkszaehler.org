@@ -43,42 +43,37 @@ label,a
                 <option value="">...</option>
                 <option value="GC">Strom (Min/Max)</option>
                 <option value="GE">Aktueller Strom</option>
-                <option value="SC">Setze Strom</option>
+                <option value="SC ">Setze Strom</option>
                 <option value="GS">Aktueller Status</option>
                 <option value="FE">Start Ladung</option>
                 <option value="FS">Stopp Ladung</option>
                 <option value="ST starthr startmin endhr endmin">Setze Timer</option>
                 <option value="ST 0 0 0 0">Reset Timer</option>
                 <option value="GT">Aktuelle Zeit</option>
-                <option value="S1">Setze Zeit</option>
+                <option value="S1 yr mo day hr min sec">Setze Zeit</option>
                 <option value="FR">Reset EVSE</option>
         </select>
-        <input type="checkbox" name="auto" checked>Automatikbetrieb<br>
+        <input type="checkbox" name="auto" value="true">Automatikbetrieb<br>
           <table border="0" cellpadding="5" cellspacing="0" bgcolor="#E0E0E0">
           <tr>
-            <td>&nbsp;</td>
             <td align="right">Vorgabestrom</td>
             <td><input name="curr" type="number" size="2" max="16" min="6" value="6"></td>
           </tr>
           <tr>
-            <td><input type="checkbox" name="start">&nbsp;<br></td>
             <td align="right">Start Stunde:Minute</td>
             <td><input name="starthr" type="number" size="2" max="23" min="0" value="8"></td>
             <td><input name="startmin" type="number" size="2" max="59" min="0" value="30"></td>
           </tr>
           <tr>
-            <td><input type="checkbox" name="stop">&nbsp;<br></td>
             <td align="right">Stop Stunde:Minute</td>
-            <td><input name="stophr" type="number" size="2" max="23" min="0" value="01"></td>
-            <td><input name="stopmin" type="number" size="2" max="59" min="0" value="30"></td>
+            <td><input name="endhr" type="number" size="2" max="23" min="0" value="16"></td>
+            <td><input name="endmin" type="number" size="2" max="59" min="0" value="30"></td>
           </tr>
           <tr>
-            <td>&nbsp;</td>
             <td align="right" valign="top">Kommentar:</td>
             <th colspan="4" align="left"><textarea name="Text" rows="2" cols="50"></textarea></th>
           </tr>
           <tr>
-            <td>&nbsp;</td>
             <td align="right">Formular:</td>
             <td>
             <input type="submit" name="formSubmit" value=" Absenden ">
@@ -132,19 +127,31 @@ function readValuesFromFile() {
   return NULL;
 }
 
+function processValues(&$newValues) {
+  foreach(array_keys($newValues) as $orbis) {
+    $part = 1;
+    if (('1.7.0(' == $orbis) or ('2.7.0(' == $orbis)) $part=$part*1000;
+    if (('2.8.0(' == $orbis) or ('2.7.0(' == $orbis)) $part=$part*-1;
+    if (('31.7(' == $orbis) and array_key_exists('81.7.4(', $newValues)) {
+      if(($newValues['81.7.4('] < -90) || ($newValues['81.7.4('] > 90)) $part = $part*-1;
+    } elseif (('51.7(' == $orbis) and array_key_exists('81.7.15(', $newValues)) {
+      if(($newValues['81.7.15('] < -90) || ($newValues['81.7.15('] > 90)) $part = $part*-1;
+    } elseif (('71.7(' == $orbis) and array_key_exists('81.7.26(', $newValues)) {
+      if(($newValues['81.7.26('] < -90) || ($newValues['81.7.26('] > 90)) $part = $part*-1;
+    }
+    $newValues[$orbis] = $newValues[$orbis]*$part;
+  }
+}// function processValues
+
 //Werte Lesen einlesen
 //echo getcwd() . "\n";
-$tmpvalues = readValuesFromFile();
+$values = readValuesFromFile();
 foreach(array_keys($values) as $orbis) {
-  if(key_exists($orbis, $tmpvalues)){
-    $values[$orbis]=$tmpvalues[$orbis];
-  }
   echo "$description[$orbis]$values[$orbis]";
   echo ("<br>");
 }
 
 $status = json_decode(file_get_contents("/run/status.json"), true);
-$auto = $status['Automatik'];
 //print_r($_POST);
 if(isset($_POST['formSubmit'])) {
   echo "<hr>";
@@ -159,7 +166,7 @@ if(isset($_POST['formSubmit'])) {
         $aControl = $aControl . " " . $curr;
       }
     }
-    $status['Befehl'] = $status['Befehl'] . $aControl . ";";
+    $status['Befehl'] = $aControl;
   }
   $auto = $_POST['auto'];
   if(!isset($auto)) {
@@ -167,13 +174,6 @@ if(isset($_POST['formSubmit'])) {
   } else {
     $status['Automatik'] = "Ja";
   }
-  $stop = $_POST['stop'];
-  if(!isset($stop)) {
-    $status['Stopzeit'] = $_POST['stophr'] . ":" . $_POST['stopmin'];;
-  } else {
-    $status['Stopzeit'] = "-";
-  }
-
   //var_dump($status);
   $tmp =  file_put_contents("/run/status.json", json_encode($status), LOCK_EX);
   //echo "<br>:.$tmp.";
@@ -184,13 +184,15 @@ foreach(array_keys($status) as $key) {
   echo "$key: $status[$key]";
   echo ("<br>");
 }
-$tmp = ($values['2.7.0('] - $values['1.7.0(']);
-?>
 
-<script type="text/javascript" class="code">
-  $(document).ready(function(){
-    s1 = [<? global $tmp; echo $tmp?>]
-    plot4 = $.jqplot('chart4',[s1],{
+  echo "<script type=\"text/javascript\" class=\"code\">";
+  echo "\$(document).ready(function(){";
+  echo "s1 = [";
+  $tmp = ($values['2.7.0('] - $values['1.7.0('])*1000;
+  echo $tmp;
+  echo "];";
+?>
+   plot4 = $.jqplot('chart4',[s1],{
        seriesDefaults: {
            renderer: $.jqplot.MeterGaugeRenderer,
            rendererOptions: {
@@ -206,53 +208,6 @@ $tmp = ($values['2.7.0('] - $values['1.7.0(']);
    });
 });
 </script>
-
-<hr>
-<form action="<?php echo htmlentities($_SERVER['PHP_SELF']); ?>" method="post">
-        <label for='formControl'>Wähle den Befehl aus</label><br>
-        <select name="formControl">
-                <option value="">...</option>
-                <option value="GC">Strom (Min/Max)</option>
-                <option value="GE">Aktueller Strom</option>
-                <option value="SC">Setze Strom</option>
-                <option value="GS">Aktueller Status</option>
-                <option value="FE">Start Ladung</option>
-                <option value="FS">Stopp Ladung</option>
-                <option value="ST starthr startmin endhr endmin">Setze Timer</option>
-                <option value="ST 0 0 0 0">Reset Timer</option>
-                <option value="GT">Aktuelle Zeit</option>
-                <option value="S1">Setze Zeit</option>
-                <option value="FR">Reset EVSE</option>
-        </select>
-        <input type="checkbox" name="auto" <? global $status; if($status['Automatik'] == "Ja") echo "checked"?>>Automatikbetrieb<b>
-          <table border="0" cellpadding="5" cellspacing="0" bgcolor="#E0E0E0">
-          <tr>
-            <td align="right">Vorgabestrom</td>
-            <td><input name="curr" type="number" size="2" max="16" min="6" value="<? global $status; echo $status['GE']?>"></td>
-          </tr>
-          <tr>
-            <td align="right">Start Stunde:Minute</td>
-            <td><input name="starthr" type="number" size="2" max="23" min="0" value="8"></td>
-            <td><input name="startmin" type="number" size="2" max="59" min="0" value="30"></td>
-          </tr>
-          <tr>
-            <td align="right">Stop Stunde:Minute</td>
-            <td><input name="endhr" type="number" size="2" max="23" min="0" value="16"></td>
-            <td><input name="endmin" type="number" size="2" max="59" min="0" value="30"></td>
-          </tr>
-          <tr>
-            <td align="right" valign="top">Kommentar:</td>
-            <th colspan="4" align="left"><textarea name="Text" rows="2" cols="50"></textarea></th>
-          </tr>
-          <tr>
-            <td align="right">Formular:</td>
-            <td>
-            <input type="submit" name="formSubmit" value=" Absenden ">
-            <input type="reset" value=" Abbrechen">
-          </td>
-          </tr>
-          </table>
-</form>
 
 
 </body>

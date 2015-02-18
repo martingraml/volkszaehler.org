@@ -61,16 +61,16 @@ label,a
             <td><input name="curr" type="number" size="2" max="16" min="6" value="6"></td>
           </tr>
           <tr>
-            <td><input type="checkbox" name="start">&nbsp;<br></td>
+            <td><input type="checkbox" name="start" value="false">&nbsp;<br></td>
             <td align="right">Start Stunde:Minute</td>
             <td><input name="starthr" type="number" size="2" max="23" min="0" value="8"></td>
             <td><input name="startmin" type="number" size="2" max="59" min="0" value="30"></td>
           </tr>
           <tr>
-            <td><input type="checkbox" name="stop">&nbsp;<br></td>
+            <td><input type="checkbox" name="stop" value="false">&nbsp;<br></td>
             <td align="right">Stop Stunde:Minute</td>
-            <td><input name="stophr" type="number" size="2" max="23" min="0" value="01"></td>
-            <td><input name="stopmin" type="number" size="2" max="59" min="0" value="30"></td>
+            <td><input name="endhr" type="number" size="2" max="23" min="0" value="16"></td>
+            <td><input name="endmin" type="number" size="2" max="59" min="0" value="30"></td>
           </tr>
           <tr>
             <td>&nbsp;</td>
@@ -167,13 +167,6 @@ if(isset($_POST['formSubmit'])) {
   } else {
     $status['Automatik'] = "Ja";
   }
-  $stop = $_POST['stop'];
-  if(!isset($stop)) {
-    $status['Stopzeit'] = $_POST['stophr'] . ":" . $_POST['stopmin'];;
-  } else {
-    $status['Stopzeit'] = "-";
-  }
-
   //var_dump($status);
   $tmp =  file_put_contents("/run/status.json", json_encode($status), LOCK_EX);
   //echo "<br>:.$tmp.";

@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/l$
+<html>
+<head>
+        <title>Steuerung Elektrotankstelle</title>
+<!-- define some style elements-->
+<style>
+label,a
+{
+        font-family : Arial, Helvetica, sans-serif;
+        font-size : 12px;
+}
+
+</style>
+</head>
+
+<body>
+<?php
+header("Content-Type: text/html; charset=utf-8");
+$filepath='/run/values';
+$device='/dev/ttyUSB1';
+
+$values=array(
+             '1.7.0(' => 0,
+             '2.7.0(' => 0,
+             '1.8.0(' => 0,
+             '2.8.0(' => 0,
+             '31.7(' => 0,
+             '51.7(' => 0,
+             '71.7(' => 0,
+             '81.7.4(' => 180,
+             '81.7.15(' => 180,
+             '81.7.26(' => 180,
+             );
+
+error_reporting(E_ALL);
+
+function setSerial($device,$bps) {
+    echo "setze Schnittstelle auf $bps bps\n";
+    $output=array();
+    $returnVar=0;
+    $cmd="stty $bps -F $device -oddp -cstopb"; //oddp 8 Bit parity none
+    exec($cmd, $output, $returnVar);
+    echo "Ergebnis vom Setzen der seriellen Schnittstelle per stty:\n";
+    print_r($output);
+} // function setSerialInitial
+
+function readValuesFromFile() {
+  global $filepath;
+  if (file_exists($filepath)) {
+    return unserialize( file_get_contents( $filepath ) );
+  } else {
+    echo "Die Datei $filename existiert nicht";
+  }
+  return NULL;
+}
+
+function processValues(&$newValues) {
+  foreach(array_keys($newValues) as $orbis) {
+    $part = 1;
+    if (('1.7.0(' == $orbis) or ('2.7.0(' == $orbis)) $part=$part*1000;
+    if (('2.8.0(' == $orbis) or ('2.7.0(' == $orbis)) $part=$part*-1;
+    if (('31.7(' == $orbis) and array_key_exists('81.7.4(', $newValues)) {
+      if(($newValues['81.7.4('] < -90) || ($newValues['81.7.4('] > 90)) $part = $part*-1;
+    } elseif (('51.7(' == $orbis) and array_key_exists('81.7.15(', $newValues)) {
+      if(($newValues['81.7.15('] < -90) || ($newValues['81.7.15('] > 90)) $part = $part*-1;
+    } elseif (('71.7(' == $orbis) and array_key_exists('81.7.26(', $newValues)) {
+      if(($newValues['81.7.26('] < -90) || ($newValues['81.7.26('] > 90)) $part = $part*-1;
+    }
+  }
+}// function processValues
+
+function getRequestString($rqstr) {
+  $sum = 36;
+  $chars = str_split($rqstr);
+  foreach($chars as $ch) {
+  	$sum += ord($ch);
+  }
+  $sum = $sum & 255;
+  $txt = sprintf("$%s*%02X%c",$rqstr,$sum, 13);
+  return $txt;
+}
+
+//Werte Lesen einlesen
+$values = readValuesFromFile();
+print_r($values);
+echo print_r($_POST);
+if(isset($_POST['formSubmit'])) {
+  $aControl = $_POST['formControl'];
+  if(!isset($aControl)) {
+    echo("<p>Du hast nichts ausgewählt!</p>\n");
+  } else {
+    echo ("<p>Ausgewählt wurde $aControl");
+    setSerial($device,9600);
+    $fp=fopen($device,'c+');
+    sleep(1);
+    if (!$fp) {
+      echo "Konnte Port $device nicht öffnen\n";
+      die;
+    } else {
+      echo "Port $device öffnen OK\n";
+    } // if
+
+    echo "Request senden ...";
+    $out = getRequestString($aControl);
+    fwrite($fp, $out);
+    echo "Request $out OK.\n";
+    sleep(2);
+    echo "lese ein\n";
+    echo $line=fgets($fp, 128);
+    fclose($fp);
+    echo("</p>");
+  }
+}
+?>
+
+<form action="<?php echo htmlentities($_SERVER['PHP_SELF']); ?>" method="post">
+        <label for='formControl'>Wähle den Befehl aus</label><br>
+        <select name="formControl">
+                <option value="">Wähle eine Option...</option>
+                <option value="GC">Strom (Min/Max)</option>
+                <option value="GE">Aktueller Strom</option>
+                <option value="GS">Aktueller Status</option>
+                <option value="FE">Start Ladung</option>
+                <option value="FS">Stopp Ladung</option>
+                <option value="ST starthr startmin endhr endmin">Setze Timer</option>
+                <option value="ST 0 0 0 0">Reset Timer</option>
+                <option value="GT">Aktuelle Zeit</option>
+                <option value="S1 yr mo day hr min sec">Setze Zeit</option>
+                <option value="ST starthr startmin endhr endmin">Starte Ladung</option>
+        </select>
+          <table border="0" cellpadding="5" cellspacing="0" bgcolor="#E0E0E0">
+          <tr>
+            <td align="right">Start Stunde:Minute</td>
+            <td><input name="starthr" type="number" size="2" maxlength="2"></td>
+            <td><input name="startmin" type="number" size="2" maxlength="2"></td>
+          </tr>
+          <tr>
+            <td align="right">Stop Stunde:Minute</td>
+            <td><input name="endhr" type="number" size="2" maxlength="2"></td>
+            <td><input name="endmin" type="number" size="2" maxlength="2"></td>
+          </tr>
+          <tr> 
+            <td align="right">Zeit YY MM DD hh mm ss</td>
+            <td><input name="yr" type="number" size="2" maxlength="2"></td>
+            <td><input name="mo" type="number" size="2" maxlength="2"></td>
+            <td><input name="day" type="number" size="2" maxlength="2"></td>
+            <td><input name="hr" type="number" size="2" maxlength="2"></td>
+            <td><input name="min" type="number" size="2" maxlength="2"></td>
+            <td><input name="sec" type="number" size="2" maxlength="2"></td>
+          </tr>
+          <tr>          
+            <td align="right" valign="top">Kommentar:</td>
+            <td><textarea name="Text" rows="10" cols="50"></textarea></td>
+          </tr>
+          <tr>
+            <td align="right">Formular:</td>
+            <td>
+            <input type="submit" name="formSubmit" value=" Absenden ">
+            <input type="reset" value=" Abbrechen">
+          </td>
+          </tr>
+          </table>
+</form>
+
+</body>
+</html>
+
