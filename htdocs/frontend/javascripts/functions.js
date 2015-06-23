@@ -96,10 +96,10 @@ vz.getPermalink = function() {
 vz.load = function(args) {
 	$.extend(args, {
 		accepts: 'application/json',
- 		beforeSend: function (xhr, settings) {
- 			// remember URL for potential error messages
- 			xhr.requestUrl = settings.url;
- 		},
+		beforeSend: function (xhr, settings) {
+			// remember URL for potential error messages
+			xhr.requestUrl = settings.url;
+		},
 		error: function(xhr) {
 			try {
 				var msg;
@@ -112,11 +112,20 @@ vz.load = function(args) {
 					}
 				}
 				else {
-					msg = xhr.requestUrl + ':<br/><br/>Unknown middleware response';
+					msg = "<a href='" + xhr.requestUrl + "' style='text-decoration:none'>" + xhr.requestUrl + "</a>";
 					if (xhr.responseText) {
 						msg += '<br/><br/>' + $(xhr.responseText).text().substring(0,300);
 					}
-					throw new Exception(xhr.statusText, msg, xhr.status);
+
+					var title = "Network Error";
+					if (xhr.status > 0) {
+						title += " (" + xhr.status + " " + xhr.statusText + ")";
+					}
+					else if (xhr.statusText !== "") {
+						title += " (" + xhr.statusText + ")";
+					}
+
+					throw new Exception(title, msg);
 				}
 			}
 			catch (e) {
@@ -187,6 +196,8 @@ vz.parseUrlParams = function() {
 
 				case 'from':
 				case 'to':
+					// disable automatic refresh
+					vz.options.refresh = false;
 					// ms or speaking timestamp
 					var ts = (/^-?[0-9]+$/.test(vars[key])) ? parseInt(vars[key]) : new Date(vars[key]).getTime();
 					if (key == 'from')
@@ -195,7 +206,11 @@ vz.parseUrlParams = function() {
 						vz.options.plot.xaxis.max = ts;
 					break;
 
-				case 'options':
+				case 'group': // explicitly set data grouping
+					vz.options[key] = vars[key];
+					break;
+
+				case 'options': // data load options
 					vz.options.options = vars[key];
 					break;
 			}

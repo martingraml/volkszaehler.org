@@ -28,7 +28,7 @@ vz.options = {
 	language: 'de',
 	precision: 2,		// TODO update from middleware capabilities?
 	tuples: null,		// automatically determined by plot size
-	refresh: false,
+	refresh: true,	// update chart if zoomed to current timestamp
 	totalsInterval: 300,	// update interval for consumption is retrieved for each channel where initialconsumption > 0
 	shortenLongTypes: false, // show shorter type names in table
 	minTimeout: 2000,	// minimum refresh time in ms
@@ -36,7 +36,7 @@ vz.options = {
 	localMiddleware: '../middleware.php',
 	remoteMiddleware: [{
 		title: 'Volkszaehler Demo',
-		url: 'http://demo.volkszaehler.org/middleware.php'
+		url: '//demo.volkszaehler.org/middleware.php'
 	}],
 	monthNames: ['Jan', 'Feb', unescape('M%E4r'), 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
 	dayNames: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],

@@ -23,6 +23,7 @@
 
 namespace Volkszaehler\Controller;
 
+use Volkszaehler\Router;
 use Volkszaehler\Model;
 use Volkszaehler\Util;
 use Volkszaehler\View;
@@ -52,6 +53,10 @@ class CapabilitiesController extends Controller {
 				'devmode' => Util\Configuration::read('devmode')
 			);
 
+			if ($commit = Util\Debug::getCurrentCommit()) {
+				$configuration['commit'] = $commit;
+			}
+
 			$capabilities['configuration'] = $configuration;
 		}
 
@@ -73,7 +78,7 @@ class CapabilitiesController extends Controller {
 			$size = $conn->fetchColumn($sql, array(Util\Configuration::read('db.dbname')));
 
 			$aggregation = Util\Configuration::read('aggregation');
-			$capabilities['database'] = array(
+			$database = array(
 				'data_rows' => $rows,
 				'data_size' => $size,
 				'aggregation_enabled' => ($aggregation) ? 1 : 0
@@ -82,23 +87,26 @@ class CapabilitiesController extends Controller {
 			// aggregation table size
 			if ($aggregation) {
 				$agg_rows = $conn->fetchColumn('SELECT COUNT(1) FROM aggregate');
-				$capabilities['database']['aggregation_rows'] = $agg_rows;
-				$capabilities['database']['aggregation_ratio'] = ($agg_rows) ? $rows/$agg_rows : 0;
+				$database['aggregation_rows'] = $agg_rows;
+				$database['aggregation_ratio'] = ($agg_rows) ? $rows/$agg_rows : 0;
 			}
+
+			$capabilities['database'] = $database;
 		}
 
 		if (is_null($section) || $section == 'formats') {
-			$capabilities['formats'] = array_keys(\Volkszaehler\Router::$viewMapping);
+			$capabilities['formats'] = array_keys(Router::$viewMapping);
 		}
 
 		if (is_null($section) || $section == 'contexts') {
-			$capabilities['contexts'] = array_keys(\Volkszaehler\Router::$controllerMapping);
+			$capabilities['contexts'] = array_keys(Router::$controllerMapping);
 		}
 
 		if (is_null($section) || $section == 'definitions') {
-			if (!is_null($section)) { // only caching when we don't request dynamic informations
-				$this->view->setCaching('expires', time()+2*7*24*60*60); // cache for 2 weeks
-			}
+			// unresolved artifact from Symfony migration
+			// if (!is_null($section)) { // only caching when we don't request dynamic informations
+			// 	$this->view->setCaching('expires', time()+2*7*24*60*60); // cache for 2 weeks
+			// }
 
 			$capabilities['definitions']['entities'] = Definition\EntityDefinition::get();
 			$capabilities['definitions']['properties'] = Definition\PropertyDefinition::get();

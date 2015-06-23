@@ -53,41 +53,7 @@ vz.wui.init = function() {
 	$('button[name=entity-add]').click(this.dialogs.init);
 
 	$('#export select').change(function(event) {
-		switch ($(this).val()) {
-			case 'permalink':
-				window.location = vz.getPermalink();
-				break;
-			case 'png':
-				// will prompt the user to save the image as PNG
-				$('#chart-export .export')
-					.html('')
-					.css({
-						"width": $('#flot').width() * 0.8,
-						"height": $('#flot').height() * 0.8})
-					.append(
-						$(Canvas2Image.saveAsPNG(vz.plot.getCanvas(), true))
-						.css({
-							"max-width":"100%",
-							"max-height":"100%"}));
-				$('#chart-export').dialog({
-					title: unescape('Export Snapshot'),
-					width: 'auto',
-					height: 'auto',
-					resizable: false,
-					buttons: {
-						Ok: function() {
-							$(this).dialog('close');
-						}
-					}
-				});
-				break;
-			case 'csv':
-			case 'json':
-			case 'xml':
-				window.location = vz.getLink($(this).val());
-				break;
-		}
-
+		vz.wui.exportData($(this).val());
 		$(this).val('default');
 	});
 
@@ -96,8 +62,8 @@ vz.wui.init = function() {
 	$('#controls').buttonset();
 
 	// auto refresh
+	$('#refresh').prop('checked', vz.options.refresh);
 	if (vz.options.refresh) {
-		$('#refresh').prop('checked', true);
 		vz.wui.tmaxnow = true;
 		vz.wui.setTimeout();
 	}
@@ -117,6 +83,34 @@ vz.wui.init = function() {
 			entity.activate(!entity.active, parent, false).done(vz.wui.drawPlot);
 		}, true);
 	});
+};
+
+/**
+ * Export data
+ */
+vz.wui.exportData = function(value) {
+	switch (value) {
+		case 'permalink':
+			window.location = vz.getPermalink();
+			break;
+		case 'png':
+			$.when(
+				$.cachedScript('javascripts/canvas/Blob.js'),
+				$.cachedScript('javascripts/canvas/canvas-toBlob.js'),
+				$.cachedScript('javascripts/canvas/FileSaver.js'))
+			.done(function() {
+				// will prompt the user to save the image as PNG
+				vz.plot.getCanvas().toBlob(function(blob) {
+					saveAs(blob, 'Screenshot.png');
+				});
+			});
+			break;
+		case 'csv':
+		case 'json':
+		case 'xml':
+			window.location = vz.getLink(value);
+			break;
+	}
 };
 
 // show available properties for selected type
@@ -520,7 +514,7 @@ vz.wui.updateLegend = function() {
 			var d = $.plot.dateGenerator(pos.x, vz.options.plot.xaxis);
 			var delta = vz.options.plot.xaxis.max - vz.options.plot.xaxis.min;
 			var format = (delta > 1*24*3600*1000) ? '%d.%m.%y - %H:%M' : '%H:%M:%S';
-			vz.wui.legend.eq(i).text(series.title + ": " + $.plot.formatDate(d,format) + " - " + y.toFixed(0) + " " + series.unit);
+			vz.wui.legend.eq(i).text(series.title + ": " + $.plot.formatDate(d,format) + " - " + vz.wui.formatNumber(y, series.unit));
 		}
 	}
 
@@ -666,8 +660,8 @@ vz.wui.formatNumber = function(number, unit, prefix) {
 	var siIndex = 0,
 			maxIndex = (typeof prefix == 'string') ? siPrefixes.indexOf(prefix)+1 : siPrefixes.length;
 
-	// flow unit?
-	if (['l', 'm3', 'm^3', 'm³', 'l/h', 'm3/h', 'm/h^3', 'm³/h'].indexOf(unit) >= 0) {
+	// flow unit or air pressure?
+	if (['l', 'm3', 'm^3', 'm³', 'l/h', 'm3/h', 'm/h^3', 'm³/h', 'hPa'].indexOf(unit) >= 0) {
 		// don't scale...
 		maxIndex = -1;
 
@@ -840,9 +834,12 @@ vz.wui.dialogs.error = function(error, description, code) {
 		error = code + ': ' + error;
 	}
 
-	$('<div>')
-	.append($('<span>').html(description))
-	.dialog({
+	// make error messages singleton (suppress follow-on errors)
+	vz.wui.errorDialog = true;
+
+	$('<div>').append(
+		$('<span>').html(description)
+	).dialog({
 		title: error,
 		width: 450,
 		dialogClass: 'ui-error',
@@ -850,6 +847,7 @@ vz.wui.dialogs.error = function(error, description, code) {
 		modal: true,
 		buttons: {
 			Ok: function() {
+				vz.wui.errorDialog = false;
 				$(this).dialog('close');
 			}
 		}
@@ -857,5 +855,6 @@ vz.wui.dialogs.error = function(error, description, code) {
 };
 
 vz.wui.dialogs.exception = function(exception) {
+	if (vz.wui.errorDialog) return;
 	this.error(exception.type, exception.message, exception.code);
 };

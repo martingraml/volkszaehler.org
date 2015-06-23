@@ -91,14 +91,21 @@ vz.entities.loadMultipleDetails = function(entities) {
 		data: {
 			uuid: entities.map(function(entity) {
 				return entity.uuid;
-			})
+			}),
+			nostrict: 1, // don't fail if entity was removed
 		},
 		success: function(json) {
 			// @todo assuming unique UUIDs across middlewares
 			this.each(function(entity) {
 				json.entities.some(function(jsonEntity) {
 					if (jsonEntity.uuid == entity.uuid) { // entity matched
-						entity.parseJSON(jsonEntity);
+						if (jsonEntity.type === undefined) {
+							// entity does not exist at server- remove from list of entities
+							vz.entities.remove(entity);
+						}
+						else {
+							entity.parseJSON(jsonEntity);
+						}
 						return true;
 					}
 				});
@@ -132,7 +139,13 @@ vz.entities.loadTotals = function() {
  * @return {string} group option or undefined
  */
 vz.entities.speedupFactor = function() {
-	var group, delta = (vz.options.plot.xaxis.max - vz.options.plot.xaxis.min) / 3.6e6;
+	var	group = vz.options.group,
+			delta = (vz.options.plot.xaxis.max - vz.options.plot.xaxis.min) / 3.6e6;
+
+	// explicit group set via url?
+	if (group !== undefined)
+		return group;
+
 	if (delta > 24 * vz.options.tuples/vz.options.speedupFactor) {
 		group = 'day';
 	}

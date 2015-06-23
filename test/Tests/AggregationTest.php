@@ -11,7 +11,7 @@ namespace Tests;
 use Volkszaehler\Util;
 use Doctrine\DBAL;
 
-class AggregationTest extends DataContextPerformance
+class AggregationTest extends DataPerformance
 {
 	/**
 	 * Create DB connection and setup channel
@@ -19,8 +19,9 @@ class AggregationTest extends DataContextPerformance
 	static function setupBeforeClass() {
 		parent::setupBeforeClass();
 
-		if (!self::$uuid)
+		if (!self::$uuid) {
 			self::$uuid = self::createChannel('Aggregation', 'power', 100);
+		}
 	}
 
 	/**
@@ -103,8 +104,10 @@ class AggregationTest extends DataContextPerformance
 		$rows = $this->countAggregationRows($uuid2);
 		$this->assertEquals(1, $rows, 'repeated delta aggregation failed');
 
-		// cleanup 2nd channel
-		self::deleteChannel($uuid2);
+		// cleanup 2nd channel and test successful deletion
+		$this->assertFalse(isset(
+			self::deleteChannel($uuid2)->exception
+		));
 	}
 
 	/**

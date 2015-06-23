@@ -6,10 +6,27 @@
 	<title>volkszaehler.org - web frontend</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
-	<link rel="shortcut icon" type="image/x-icon" href="../favicon.ico" />
-	<link rel="apple-touch-icon-precomposed" href="../favicon.ico" />
-	<!-- to support android versions newer than 2.3 -->
-	<link rel="apple-touch-icon" href="../favicon.ico" />
+	<!-- icons courtesy to http://realfavicongenerator.net -->
+	<link rel="apple-touch-icon" sizes="57x57" href="icons/apple-touch-icon-57x57.png">
+	<link rel="apple-touch-icon" sizes="60x60" href="icons/apple-touch-icon-60x60.png">
+	<link rel="apple-touch-icon" sizes="72x72" href="icons/apple-touch-icon-72x72.png">
+	<link rel="apple-touch-icon" sizes="76x76" href="icons/apple-touch-icon-76x76.png">
+	<link rel="apple-touch-icon" sizes="114x114" href="icons/apple-touch-icon-114x114.png">
+	<link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-120x120.png">
+	<link rel="apple-touch-icon" sizes="144x144" href="icons/apple-touch-icon-144x144.png">
+	<link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152x152.png">
+	<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180x180.png">
+	<link rel="icon" type="image/png" href="icons/favicon-32x32.png" sizes="32x32">
+	<link rel="icon" type="image/png" href="icons/android-chrome-192x192.png" sizes="192x192">
+	<link rel="icon" type="image/png" href="icons/favicon-96x96.png" sizes="96x96">
+	<link rel="icon" type="image/png" href="icons/favicon-16x16.png" sizes="16x16">
+	<link rel="manifest" href="icons/manifest.json">
+	<link rel="shortcut icon" href="icons/favicon.ico">
+	<meta name="msapplication-TileColor" content="#da532c">
+	<meta name="msapplication-TileImage" content="icons/mstile-144x144.png">
+	<meta name="msapplication-config" content="icons/browserconfig.xml">
+	<meta name="theme-color" content="#ffffff">
+
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="apple-mobile-web-app-status-bar-style" content="black" />
 	<!-- to support IE 9+ in intranet environments -->
@@ -39,8 +56,6 @@
 	<script type="text/javascript" src="vendor/flot/jquery.flot.canvas.js"></script>
 	<script type="text/javascript" src="vendor/flot/jquery.flot.axislabels.js"></script>
 	<script type="text/javascript" src="vendor/flot/jquery.flot.xgap.js"></script>
-	<script type="text/javascript" src="vendor/flot/base64.js"></script>
-	<script type="text/javascript" src="vendor/flot/canvas2image.js"></script>
 	<script type="text/javascript" src="vendor/flot/date.js"></script>
 	-->
 	<!-- for timezone support ensure timezone data from ftp://ftp.iana.org/tz/tzdata-latest.tar.gz is in frontend/tz -->
@@ -73,7 +88,7 @@
 			<select class="icons">
 				<option value="default" selected="selected" class="icon-export">Export...</option>
 				<option value="permalink" class="icon-link">Permalink</option>
-				<option value="png" class="icon-image" disabled="disabled">Snapshot</option>
+				<option value="png" class="icon-image">Screenshot</option>
 				<option value="csv" class="icon-table">CSV</option>
 				<option value="xml" class="icon-xml">XML</option>
 				<option value="json" class="icon-json">JSON</option>
@@ -176,7 +191,7 @@
 				<tr><td><label for="entity-subscribe-middleware">Middleware:</label></td><td><input id="entity-subscribe-middleware" type="text" size="36" /></td></tr>
 				<tr><td><label for="entity-subscribe-uuid">UUID:</label></td><td><input id="entity-subscribe-uuid" type="text" size="36" maxlength="36" /></td></tr>
 			</table>
-			<p><input type="button" value="Abonnieren" /> <label for="entity-subscribe-cookie">Cookie:</label> <input id="entity-subscribe-cookie" type="checkbox" /></p>
+			<p><input type="button" value="Abonnieren" /> <label for="entity-subscribe-cookie">Cookie:</label> <input id="entity-subscribe-cookie" type="checkbox" checked="checked" /></p>
 		</div>
 		<div id="entity-public">
 			<p>Hier k&ouml;nnen Sie &ouml;ffentliche Kan&auml;le abonnieren.</p>
@@ -184,7 +199,7 @@
 				<tr><td><label for="entity-public-middleware">Middleware:</label></td><td><select id="entity-public-middleware"></select></td></tr>
 				<tr><td><label for="entity-public-entity">Kanal:</label></td><td><select id="entity-public-entity" size="1"></select></td></tr>
 			</table>
-			<p><input type="button" value="Abonnieren" /> <label for="entity-public-cookie">Cookie:</label> <input id="entity-public-cookie" type="checkbox" /></p>
+			<p><input type="button" value="Abonnieren" /> <label for="entity-public-cookie">Cookie:</label> <input id="entity-public-cookie" type="checkbox" checked="checked" /></p>
 		</div>
 		<div id="entity-create">
 			<form method="get" target="_blank">
@@ -193,7 +208,7 @@
 					<tr class="property"><td>Middleware:</td><td><input type="text" id="entity-create-middleware" /></td></tr>
 					<tr class="property"><td>Typ:</td><td><select class="icons" name="type" size="1"></select></td></tr>
 				</table>
-				<p><input type="submit" value="Erstellen" />  <label for="entity-create-cookie">Cookie:</label> <input id="entity-create-cookie" type="checkbox" /></p>
+				<p><input type="submit" value="Erstellen" />  <label for="entity-create-cookie">Cookie:</label> <input id="entity-create-cookie" type="checkbox" checked="checked" /></p>
 			</form>
 		</div>
 	</div>

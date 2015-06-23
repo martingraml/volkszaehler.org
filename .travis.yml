@@ -1,76 +1,133 @@
 language: php
 
 php:
-    - "5.6"
-    - "5.5"
-    - "5.4"
-    - "5.3"
+    - 5.3
+    - 5.4
+    - 5.5
+    - 5.6
+    - nightly
+    - hhvm
 
 services:
     - mysql
     - postgresql
 
 env:
+  # run composer by default
+  global:
+    - DEPENDENCIES=true
+    - APC=true
+    - TRAVIS_TEST_EXCLUDES="--exclude-group slow,jpgraph"
+  matrix:
     - DB=mysql
     - DB=pgsql
     - DB=sqlite
+
+matrix:
+  include:
+    # add jslint-only build
+    - php: 5.6
+      env: DB= DEPENDENCIES= JSLINT=true
+    # add httpd-based build
+    - php: 5.6
+      env: DB=mysql TEST_ADAPTER=HTTP
+  # remove hhvm/pgsql
+  exclude:
+    - php: hhvm
+      env: DB=pgsql
+    - php: hhvm
+      env: APC=true
+  allow_failures:
+    - php: nightly
+    - php: hhvm
 
 notifications:
     mail: "volkszaehler-dev@lists.volkszaehler.org"
     irc: "chat.freenode.net#volkszaehler.org"
 
-before_install:
-    - composer self-update
+# speedup build
+cache:
+  directories:
+    - $COMPOSER_CACHE_DIR
+    - $HOME/.composer/cache
+    - vendor
 
 install:
-    - composer install
-    - npm install
+    - if [ "$DEPENDENCIES" = true ]; then composer install; fi
+    - if [ "$JSLINT" = true ]; then npm install; fi
+    - if [ "$TEST_ADAPTER" = "HTTP" ]; then composer require volkszaehler/httpd:dev-master jenssegers/proxy:~2.2; fi
+
+    # add apc cache
+    - |
+      if [ "$APC" = true ]; then
+        phpenv config-add ./test/bin/apc.ini
+        if php -r 'exit(version_compare(PHP_VERSION, "5.5", ">=")?0:1);'; then echo "no" | pecl install apcu-beta; fi
+        if php -r 'exit(function_exists("apc_store")?0:1);'; then echo "APC enabled"; else echo "APC disabled"; fi
+      fi
 
 before_script:
+    # enable shell errors
+    - set -e
     - cp etc/volkszaehler.conf.template.php etc/volkszaehler.conf.php
 
     - DATABASE=travis
-    - USER=travis
+    - if [ ! "$DB" = "pgsql" ]; then USER=travis; else USER=postgres; fi
     - PASSWORD=
-    - echo $USER
 
-    # fix username before default rules apply
-    - sh -c "if [ '$DB' = 'pgsql' ]; then sed -i 's/'\''vz'\''/'\''postgres'\''/' etc/volkszaehler.conf.php; fi;"
-
+    # create config file
     - sed -i "s/'pdo_mysql'/'pdo_$DB'/" etc/volkszaehler.conf.php
     - sed -i "s/'vz'/'$USER'/" etc/volkszaehler.conf.php
     - sed -i "s/'demo'/'$PASSWORD'/" etc/volkszaehler.conf.php
     - sed -i "s/'volkszaehler'/'$DATABASE'/" etc/volkszaehler.conf.php
-
+    - if [ "$DB" = "sqlite" ]; then sed -i "s/\?>/\$config['db']['path']\ =\ VZ_DIR.'\/sqlite.db3'\n?>/" etc/volkszaehler.conf.php; fi
     - cat etc/volkszaehler.conf.php
 
-    - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e 'create database $DATABASE;' -u $USER; fi;"
-    - sh -c "if [ '$DB' = 'pgsql' ]; then psql -c 'create database $DATABASE;' -U postgres; fi;"
-    - sh -c "if [ '$DB' = 'sqlite' ]; then sed -i 's/\?>/\$config['\''db'\'']['\''path'\'']\ =\ VZ_DIR.'\''\/sqlite.db3'\''\n?>/' etc/volkszaehler.conf.php; fi;"
+    # create database
+    - if [ "$DB" = "mysql" ]; then mysql -e "create database $DATABASE;" -u $USER; fi
+    - if [ "$DB" = "pgsql" ]; then psql -c "create database $DATABASE;" -U postgres; fi
 
-    - cat etc/volkszaehler.conf.php
+    # create schema
+    - if [ -n "$DB" ]; then php misc/tools/doctrine orm:schema-tool:create --dump-sql > misc/sql/schema.sql; fi
+    - if [ -n "$DB" ]; then sed -i 's/ATTENTION/-- /' misc/sql/schema.sql; fi
+    - if [ -n "$DB" ]; then echo ';' >> misc/sql/schema.sql; fi
+    - if [ -n "$DB" ]; then cat misc/sql/schema.sql; fi
 
-    - php misc/tools/doctrine orm:schema-tool:create --dump-sql > misc/sql/schema.sql
-    - sed -i 's/ATTENTION/-- /' misc/sql/schema.sql
-    - echo ';' >> misc/sql/schema.sql
+    - if [ "$DB" = "mysql" ]; then cat misc/sql/schema.sql | mysql -u $USER $DATABASE; fi
+    - if [ "$DB" = "pgsql" ]; then cat misc/sql/schema.sql | psql -U postgres $DATABASE; fi
+    - if [ "$DB" = "sqlite" ]; then cat misc/sql/schema.sql | sqlite3 sqlite.db3; sqlite3 sqlite.db3 .dump; fi
 
-    - cat misc/sql/schema.sql
+    # setup local middleware
+    - |
+      if [ "$TEST_ADAPTER" = "HTTP" ]; then
+        sed -i "s/testAdapter\" value=\".*\"/testAdapter\" value=\"$TEST_ADAPTER\"/" test/phpunit.xml
+        vendor/bin/httpd.php start &
+        HTTPD_PID=$!
+        echo "Started httpd with pid $HTTPD_PID"
+      fi
 
-    - sh -c "if [ '$DB' = 'mysql' ]; then cat misc/sql/schema.sql | mysql -u $USER $DATABASE; fi;"
-    - sh -c "if [ '$DB' = 'pgsql' ]; then cat misc/sql/schema.sql | psql -U postgres $DATABASE; fi;"
-    - sh -c "if [ '$DB' = 'sqlite' ]; then cat misc/sql/schema.sql | sqlite3 sqlite.db3; sqlite3 sqlite.db3 .dump; fi;"
+after_script:
+    - if [ "$TEST_ADAPTER" = "HTTP" ]; then kill -9 $HTTPD_PID; fi
 
 script:
     - cd test
-    - phpunit --exclude-group aggregation --coverage-text
+    # run core tests
+    - if [ -n "$DB" ]; then phpunit $TRAVIS_TEST_EXCLUDES,aggregation; fi
 
     # re-run with aggregation enabled
-    - sed -i "s/\?>/\$config['aggregation']\ =\ true;\n?>/" ../etc/volkszaehler.conf.php
-    - sh -c "if [ '$DB' = 'mysql' ]; then phpunit --coverage-text; fi;"
+    - if [ "$DB" = "mysql" ]; then sed -i "s/\?>/\$config['aggregation']\ =\ true;\n?>/" ../etc/volkszaehler.conf.php; fi
+    - |
+      if [ "$DB" = "mysql" -a "$TEST_ADAPTER" = "HTTP" ]; then
+        kill -9 $HTTPD_PID
+        sleep 10
+        ../vendor/bin/httpd.php start &
+        HTTPD_PID=$!
+        echo "Started httpd with pid $HTTPD_PID"
+      fi
+    - if [ "$DB" = "mysql" ]; then phpunit $TRAVIS_TEST_EXCLUDES --coverage-text; fi
+    - cd ..
 
     # test running aggregation tool
-    - cd ..
-    - sh -c "if [ '$DB' = 'mysql' ]; then php misc/tools/aggregate.php run -m delta -l hour; fi;"
+    - if [ "$DB" = "mysql" ]; then php misc/tools/aggregate.php run -m delta -l hour; fi
 
     # jslint javascript sources
-    - gulp jshint
+    - if [ "$JSLINT" = true ]; then gulp jshint; fi

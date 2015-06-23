@@ -23,8 +23,10 @@
 
 namespace Volkszaehler\View;
 
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+
 use Volkszaehler\Interpreter;
-use Volkszaehler\View\HTTP;
 use Volkszaehler\Util;
 use Volkszaehler\Model;
 
@@ -51,8 +53,10 @@ class XML extends View {
 	 * @param HTTP\Request $request
 	 * @param HTTP\Response $response
 	 */
-	public function __construct(HTTP\Request $request, HTTP\Response $response) {
-		parent::__construct($request, $response);
+	public function __construct(Request $request) {
+		parent::__construct($request);
+		// $this->response->headers->set('Content-Type', 'text/xml');
+		$this->response->headers->set('Content-type', 'application/xml; charset=UTF-8');
 
 		$this->xmlDoc = new \DOMDocument('1.0', 'UTF-8');
 
@@ -103,9 +107,7 @@ class XML extends View {
 	 * @return string the output
 	 */
 	protected function render() {
-		$this->response->setHeader('Content-type', 'application/xml; charset=UTF-8');
-
-		echo $this->xmlDoc->saveXML();
+		return $this->xmlDoc->saveXML();
 	}
 
 	/**
@@ -177,7 +179,7 @@ class XML extends View {
 		if ($uptime = Util\Debug::getUptime()) $xmlDebug->appendChild($this->xmlDoc->createElement('uptime', $uptime*1000));
 		if ($load = Util\Debug::getLoadAvg()) $xmlDebug->appendChild($this->xmlDoc->createElement('load', implode(', ', $load)));
 		if ($commit = Util\Debug::getCurrentCommit()) $xmlDebug->appendChild($this->xmlDoc->createElement('commit-hash', $commit));
-		if ($version = Util\Debug::getPhpVersion()) $xmlDebug->appendChild($this->xmlDoc->createElement('php-version', $version));
+		if ($version = phpversion()) $xmlDebug->appendChild($this->xmlDoc->createElement('php-version', $version));
 
 		$xmlMessages = $this->xmlDoc->createElement('messages');
 		foreach ($debug->getMessages() as $message) {
